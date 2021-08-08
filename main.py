@@ -76,16 +76,12 @@ CERTIFICATE_TEMPLATE = """
 app = Flask(__name__)
 
 
-def uploadtoAstraDB(name, email, certificate):
-    pass
-
-
 @app.route("/")
 def generateCertificates():
     name = request.args.get("name")
     email = request.args.get("email")
+
     certTemplate = CERTIFICATE_TEMPLATE % name
-    # uploadtoAstraDB(name, email)
     response = requests.post(
         "http://api.pdflayer.com/api/convert",
         params={"access_key": os.getenv("PDFLAVER_API_KEY")},

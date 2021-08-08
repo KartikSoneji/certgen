@@ -23,7 +23,7 @@ def send_email(hack_name, name, from_email, to_emails, link):
 
     attachedFile = Attachment(
         FileContent(file),
-        FileName("Certificate.pdf"),
+        FileName("certificate.pdf"),
         FileType("application/pdf"),
         Disposition("attachment"),
     )
