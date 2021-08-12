@@ -27,7 +27,7 @@ def send_email(hack_name, name, id_from, id_to, link):
 
     sg = SendGridAPIClient(
         api_key=(
-            "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"
+            "" '''Enter API Key'''
         )
     )
     response = sg.send(message)
