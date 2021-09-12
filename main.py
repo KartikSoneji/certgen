@@ -7,6 +7,7 @@ import os
 from flask import Flask
 import requests
 import flask
+import psycopg2
 from flask import request
 from mailer import send_email
 
@@ -74,12 +75,28 @@ CERTIFICATE_TEMPLATE = """
 """
 
 app = Flask(__name__)
+conn = psycopg2.connect(os.environ.get("COCKROACH_DSN"))
 
 
 @app.route("/")
 def generateCertificates():
     name = request.args.get("name")
     email = request.args.get("email")
+
+    generate_certificate_cached_cockroachdb(name, email)
+    send_email(
+        "RoboHacks", name, "sreekaransrinath@gmail.com", email, "certificate.pdf"
+    )
+    status_code = flask.Response(status=200)
+    return "Generated"
+
+def generate_certificate_cached_cockroachdb(name, email):
+    with conn.cursor() as cur:
+        cur.execute("SELECT certificate FROM Certificates WHERE name = %s AND email = %s", (name, email))
+        row = cur.fetchone()
+        if row:
+            open("certificate.pdf", "wb").write(row[0])
+            return
 
     certTemplate = CERTIFICATE_TEMPLATE % name
     response = requests.post(
@@ -88,12 +105,27 @@ def generateCertificates():
         data={"document_html": certTemplate, "test": 1},
     )
     open("certificate.pdf", "wb").write(response.content)
-    send_email(
-        "RoboHacks", name, "sreekaransrinath@gmail.com", email, "certificate.pdf"
-    )
-    status_code = flask.Response(status=200)
-    return "Generated"
+    with conn.cursor() as cur:
+        cur.execute(
+          "UPSERT INTO Certificates (name, email, certificate) VALUES (%s, %s, %s)",
+          (name, email, psycopg2.Binary(response.content))
+        )
+    conn.commit()
 
+def setup_database():
+	with conn.cursor() as cur:
+		cur.execute("CREATE DATABASE IF NOT EXISTS HackCal")
+		cur.execute("USE HackCal")
+
+		cur.execute("""
+			CREATE TABLE IF NOT EXISTS Certificates (
+				name STRING,
+				email STRING,
+				certificate BLOB
+			)
+		""")
+	conn.commit()
 
 if __name__ == "__main__":
+    setup_database()
     app.run()
